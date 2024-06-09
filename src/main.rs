@@ -10,7 +10,9 @@ fn main() -> anyhow::Result<()> {
         let input = input.trim_end();
 
         match input {
+            "exit 0" => break,
             _ => println!("{input}: command not found"),
         }
     }
+    Ok(())
 }
