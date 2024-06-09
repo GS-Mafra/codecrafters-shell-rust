@@ -1,6 +1,22 @@
 use std::io::{self, Cursor, Write};
 
 use bytes::Buf;
+use strum::VariantNames;
+
+#[allow(dead_code)] // TODO
+#[derive(Debug, VariantNames)]
+enum BuiltIn<'a> {
+    Exit(u8),
+    Echo(&'a str),
+    Type(&'a str),
+}
+
+impl<'a> BuiltIn<'a> {
+    #[inline]
+    fn is_builtin(cmd: &str) -> bool {
+        Self::VARIANTS.iter().any(|x| x.eq_ignore_ascii_case(cmd))
+    }
+}
 
 fn main() -> anyhow::Result<()> {
     loop {
@@ -16,9 +32,22 @@ fn main() -> anyhow::Result<()> {
             "exit" => {
                 // TODO
                 let _code = str_chunk(cur).parse::<u8>()?;
+                // BuiltIn::Exit(code);
                 break;
             }
-            "echo" => println!("{}", str_chunk(cur)),
+            "echo" => {
+                // BuiltIn::Echo(str_chunk(cur));
+                println!("{}", str_chunk(cur));
+            }
+            "type" => {
+                let cmd = str_chunk(cur);
+                if BuiltIn::is_builtin(cmd) {
+                    println!("{cmd} is a shell builtin");
+                }
+                else {
+                    println!("{cmd} not found");
+                }
+            }
             cmd => println!("{cmd}: command not found"),
         }
     }
