@@ -1,7 +1,9 @@
+#![feature(absolute_path)]
+
 use std::{
     env,
-    io::{self, Cursor, Write},
-    path::{Path, PathBuf},
+    io::{self, Cursor, ErrorKind, Write},
+    path::{self, Path, PathBuf},
     process::Command,
 };
 
@@ -67,9 +69,20 @@ fn main() -> anyhow::Result<()> {
             }
             "pwd" => println!("{}", env::current_dir()?.display()),
             "cd" => {
-                let path = Path::new(str_chunk(cur));
-                if std::env::set_current_dir(path).is_err() {
-                    println!("cd: {}: No such file or directory", path.display());
+                let chunk = str_chunk(cur);
+                let path = if chunk == "~" || chunk.is_empty() {
+                    dirs::home_dir().ok_or_else(|| io::Error::from(ErrorKind::NotFound))
+                } else {
+                    path::absolute(chunk)
+                };
+
+                if let Err(e) = path.and_then(env::set_current_dir) {
+                    match e.kind() {
+                        io::ErrorKind::NotFound => {
+                            println!("cd: {chunk}: No such file or directory");
+                        }
+                        _ => return Err(e.into()),
+                    }
                 }
             }
             cmd => {
