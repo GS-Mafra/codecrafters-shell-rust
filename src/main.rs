@@ -14,6 +14,7 @@ enum BuiltIn<'a> {
     Exit(u8),
     Echo(&'a str),
     Type(&'a str),
+    Pwd,
 }
 
 impl<'a> BuiltIn<'a> {
@@ -63,6 +64,7 @@ fn main() -> anyhow::Result<()> {
                     },
                 );
             }
+            "pwd" => println!("{}", env::current_dir()?.display()),
             cmd => {
                 if let Some(exe_path) = find_exe(&env_path, cmd) {
                     let args = str_chunk(cur).split_whitespace();
