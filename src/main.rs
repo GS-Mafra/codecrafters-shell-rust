@@ -1,5 +1,3 @@
-#![feature(absolute_path)]
-
 use std::{
     env,
     io::{self, Cursor, ErrorKind, Write},
