@@ -1,6 +1,6 @@
 use std::{
     io::{self, Cursor, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use bytes::Buf;
@@ -55,25 +55,45 @@ fn main() -> anyhow::Result<()> {
                     break 'ty;
                 }
 
-                env_path
-                    .iter()
-                    .find_map(|path| {
-                        let path = path.join(cmd);
-                        std::fs::metadata(&path)
-                            .is_ok_and(|x| x.is_file())
-                            .then_some(path)
-                    })
-                    .map_or_else(
-                        || println!("{cmd} not found"),
-                        |path| {
-                            println!("{cmd} is {}", path.display());
-                        },
-                    );
+                find_exe(&env_path, cmd).map_or_else(
+                    || println!("{cmd} not found"),
+                    |path| {
+                        println!("{cmd} is {}", path.display());
+                    },
+                );
             }
-            cmd => println!("{cmd}: command not found"),
+            cmd => {
+                if let Some(exe_path) = find_exe(&env_path, cmd) {
+                    let args = str_chunk(cur).split_whitespace();
+                    let output = std::process::Command::new(&exe_path).args(args).output()?;
+                    anyhow::ensure!(
+                        output.status.success(),
+                        "Failed to execute {cmd}: {}",
+                        output.status,
+                    );
+                    io::stdout().write_all(&output.stdout)?;
+                    io::stderr().write_all(&output.stderr)?;
+                } else {
+                    println!("{cmd}: command not found");
+                }
+            }
         }
     }
     Ok(())
+}
+
+fn find_exe<I, P>(dirs: I, exe: impl AsRef<Path>) -> Option<PathBuf>
+where
+    I: IntoIterator<Item = P>,
+    P: AsRef<Path>,
+{
+    let exe = exe.as_ref();
+    dirs.into_iter().find_map(|path| {
+        let path = path.as_ref().join(exe);
+        std::fs::metadata(&path)
+            .is_ok_and(|x| x.is_file())
+            .then_some(path)
+    })
 }
 
 fn until_space<'a>(cur: &mut Cursor<&'a str>) -> &'a str {
