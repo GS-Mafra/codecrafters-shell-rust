@@ -15,6 +15,7 @@ enum BuiltIn<'a> {
     Echo(&'a str),
     Type(&'a str),
     Pwd,
+    Cd(&'a Path),
 }
 
 impl<'a> BuiltIn<'a> {
@@ -65,6 +66,12 @@ fn main() -> anyhow::Result<()> {
                 );
             }
             "pwd" => println!("{}", env::current_dir()?.display()),
+            "cd" => {
+                let path = Path::new(str_chunk(cur));
+                if std::env::set_current_dir(path).is_err() {
+                    println!("cd: {}: No such file or directory", path.display());
+                }
+            }
             cmd => {
                 if let Some(exe_path) = find_exe(&env_path, cmd) {
                     let args = str_chunk(cur).split_whitespace();
