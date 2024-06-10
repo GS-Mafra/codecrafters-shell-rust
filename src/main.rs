@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Write};
+use std::{
+    io::{self, Cursor, Write},
+    path::PathBuf,
+};
 
 use bytes::Buf;
 use strum::VariantNames;
@@ -19,6 +22,11 @@ impl<'a> BuiltIn<'a> {
 }
 
 fn main() -> anyhow::Result<()> {
+    let env_path = std::env::var("PATH").map_or_else(
+        |_| Vec::new(),
+        |x| x.split(':').map(PathBuf::from).collect::<Vec<_>>(),
+    );
+
     loop {
         print!("$ ");
         io::stdout().flush()?;
@@ -39,14 +47,28 @@ fn main() -> anyhow::Result<()> {
                 // BuiltIn::Echo(str_chunk(cur));
                 println!("{}", str_chunk(cur));
             }
-            "type" => {
+            "type" => 'ty: {
                 let cmd = str_chunk(cur);
+
                 if BuiltIn::is_builtin(cmd) {
                     println!("{cmd} is a shell builtin");
+                    break 'ty;
                 }
-                else {
-                    println!("{cmd} not found");
-                }
+
+                env_path
+                    .iter()
+                    .find_map(|path| {
+                        let path = path.join(cmd);
+                        std::fs::metadata(&path)
+                            .is_ok_and(|x| x.is_file())
+                            .then_some(path)
+                    })
+                    .map_or_else(
+                        || println!("{cmd} not found"),
+                        |path| {
+                            println!("{cmd} is {}", path.display());
+                        },
+                    );
             }
             cmd => println!("{cmd}: command not found"),
         }
