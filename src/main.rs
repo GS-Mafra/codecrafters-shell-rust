@@ -1,6 +1,8 @@
 use std::{
+    env,
     io::{self, Cursor, Write},
     path::{Path, PathBuf},
+    process::Command,
 };
 
 use bytes::Buf;
@@ -22,10 +24,9 @@ impl<'a> BuiltIn<'a> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let env_path = std::env::var("PATH").map_or_else(
-        |_| Vec::new(),
-        |x| x.split(':').map(PathBuf::from).collect::<Vec<_>>(),
-    );
+    let env_path = env::var("PATH")
+        .map(|x| env::split_paths(&x).collect::<Vec<_>>())
+        .unwrap_or_default();
 
     loop {
         print!("$ ");
@@ -65,7 +66,7 @@ fn main() -> anyhow::Result<()> {
             cmd => {
                 if let Some(exe_path) = find_exe(&env_path, cmd) {
                     let args = str_chunk(cur).split_whitespace();
-                    let output = std::process::Command::new(&exe_path).args(args).output()?;
+                    let output = Command::new(&exe_path).args(args).output()?;
                     anyhow::ensure!(
                         output.status.success(),
                         "Failed to execute {cmd}: {}",
